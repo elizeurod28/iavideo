@@ -339,7 +339,7 @@
 
         <div class="warning">
             <i class="fas fa-info-circle"></i> 
-            <strong>Versão estável!</strong> Usando método direto com a Replicate. O vídeo pode levar até 60 segundos.
+            <strong>Versão definitiva!</strong> Usando servidor proxy para upload. O vídeo pode levar até 60 segundos.
         </div>
 
         <div class="disclaimer">
@@ -443,6 +443,32 @@
                 });
             }
 
+            // Função para fazer upload usando o serviço gratuito
+            async function uploadImage(base64Image) {
+                // Extrair apenas o base64
+                const base64Data = base64Image.split(',')[1];
+                
+                // Usar o serviço gratuito de upload
+                const formData = new FormData();
+                formData.append('image', base64Data);
+                
+                const response = await fetch('https://api.imgbb.com/1/upload?key=5d192b065c7744468737d764d884d33d', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Falha no upload da imagem');
+                }
+
+                const data = await response.json();
+                if (!data.success) {
+                    throw new Error('Erro no upload: ' + (data.error?.message || 'Desconhecido'));
+                }
+
+                return data.data.url;
+            }
+
             async function generateVideo() {
                 if (!currentImageFile) {
                     setStatus('⚠️', 'Por favor, selecione uma foto primeiro.', '#fbbf24');
@@ -471,8 +497,9 @@
                     setStatus('⏳', '📸 Preparando imagem...', '#a78bfa');
                     const resizedImage = await resizeImage(imageDataUrl, 512, 512);
                     
-                    // Extrair apenas o base64 puro (sem o prefixo)
-                    const base64Data = resizedImage.split(',')[1];
+                    setStatus('⏳', '📤 Enviando imagem para servidor...', '#a78bfa');
+                    const imageUrl = await uploadImage(resizedImage);
+                    setStatus('✅', '📸 Imagem enviada com sucesso!', '#86efac');
 
                     setStatus('⏳', '🤖 Enviando para a IA...', '#a78bfa');
 
@@ -485,7 +512,7 @@
                         body: JSON.stringify({
                             version: "3f0450e77b947e5e12b3e6608dee1f5201d1fde2f56c9c9c08a43c80cd5b9f77",
                             input: {
-                                input_image: base64Data,
+                                input_image: imageUrl,
                                 prompt: prompt,
                                 video_length: "25_frames",
                                 fps: 7,
